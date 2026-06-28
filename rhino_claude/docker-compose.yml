@@ -1,0 +1,78 @@
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — persistent storage for URL mappings
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine          # alpine = smaller attack surface
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB}
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data   # data survives container restarts
+    healthcheck:
+      # pg_isready confirms the server accepts connections on the right db/user.
+      # Compose uses this to gate the api service start (condition: service_healthy).
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+
+  # ---------------------------------------------------------------------------
+  # Redis — in-memory cache for recent URL lookups
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # maxmemory-policy: when Redis is full, evict the least-recently-used key.
+    # This keeps the cache self-managing without external cleanup jobs.
+    command: ["redis-server", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 160M    # slightly above maxmemory so the process isn't OOM-killed
+
+  # ---------------------------------------------------------------------------
+  # API — FastAPI URL shortener
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      DATABASE_URL:      postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL:         redis://redis:6379
+      BASE_URL:          ${BASE_URL:-http://localhost:8000}
+      CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-3600}
+    depends_on:
+      postgres:
+        condition: service_healthy   # wait for pg_isready, not just "container started"
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 256M
+
+volumes:
+  postgres_data:
+    # Named volume managed by Docker — data persists across `docker compose down`
+    # Use `docker compose down -v` only if you want to wipe the database
