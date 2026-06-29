@@ -1,0 +1,20 @@
+endpoints:
+  - name: API Health
+    url: http://api:8000/health
+    interval: 15s
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY].status == healthy"
+      - "[RESPONSE_TIME] < 500"
+
+  - name: Postgres
+    url: tcp://postgres:5432
+    interval: 15s
+    conditions:
+      - "[CONNECTED] == true"
+
+  - name: Redis
+    url: tcp://redis:6379
+    interval: 15s
+    conditions:
+      - "[CONNECTED] == true"

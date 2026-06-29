@@ -86,8 +86,19 @@ services:
           cpus: "0.5"
           memory: 128M 
 
-
-
+  gatus:
+    image: twinproduction/gatus:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./gatus.yml:/config/config.yaml:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 64M
+          
 volumes:
   postgres_data:
   uptime_kuma_data:
