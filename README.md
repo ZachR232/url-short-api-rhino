@@ -20,7 +20,7 @@ A containerised URL shortener built with FastAPI, PostgreSQL, and Redis, with bu
 
 ```bash
 # 1. Clone the repo
-git clone <repo-url> && cd rhino_claude
+git clone <repo-url> && cd url-short-api-rhino
 
 # 2. Initialise — creates .env automatically from .env.example
 make init
