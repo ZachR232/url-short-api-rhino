@@ -71,20 +71,6 @@ services:
         limits:
           cpus: "1"
           memory: 256M
-  
-  uptime-kuma:
-    image: louislam/uptime-kuma:1
-    container_name: uptime-kuma
-    restart: unless-stopped
-    ports:
-      - "3001:3001"
-    volumes:
-      - uptime_kuma_data:/app/data
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 128M 
 
   gatus:
     image: twinproduction/gatus:latest
@@ -101,7 +87,6 @@ services:
           
 volumes:
   postgres_data:
-  uptime_kuma_data:
     # Named volume managed by Docker — data persists across `docker compose down`
     # Use `docker compose down -v` only if you want to wipe the database
 
