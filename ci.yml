@@ -1,0 +1,52 @@
+name: CI
+
+# Run on every push and every pull request targeting main.
+# This means broken code is caught BEFORE it merges, not after.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create .env from example
+        # CI has no .env file (it's gitignored, correctly).
+        # We use the same defaults as .env.example — fine for a test run,
+        # never do this with real production secrets.
+        run: cp .env.example .env
+
+      - name: Build and start the full stack
+        # This is the real test: does `docker compose up --build` work
+        # on a clean machine, exactly like Paul's clean-machine test?
+        run: docker compose up --build -d
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run integration tests
+        run: pytest tests/ -v
+
+      - name: Show logs on failure
+        if: failure()
+        # If anything above failed, dump every container's logs.
+        # Without this, a CI failure just says "exit code 1" and
+        # you have to reproduce it locally to see what broke.
+        run: docker compose logs
+
+      - name: Tear down
+        if: always()
+        # always() means this runs even if previous steps failed —
+        # otherwise failed runs leave containers running on the runner.
+        run: docker compose down -v
